@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOONLIT ✨</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    
+
+   
+
+    <div class="content">
+
+        <!-- Hero -->
+       <div class="hero">
+    <div class="logo-wrap">
+        <div class="logo-icon">🌙</div>
+        <div class="logo">MOONLIT</div>
+    </div>
+    <div class="acronym">Movies · Our Opinions · Narratives · Literature · Intelligence · Tool</div>
+    <div class="tagline">Find what you half-remember. Discover what your mood needs.<br>Across every language and medium.</div>
+    <div class="hero-line">
+        <div class="hero-line-bar"></div>
+        <div class="hero-line-dot"></div>
+        <div class="hero-line-bar"></div>
+    </div>
+</div>
+
+        <!-- Mode Toggle -->
+        <div class="mode-row">
+            <button class="mode-btn active" id="btn-find" onclick="setMode('find')">
+                🔍 Find It
+            </button>
+            <button class="mode-btn" id="btn-vibe" onclick="setMode('vibe')">
+                🌙 Vibe Me
+            </button>
+        </div>
+
+        <!-- Search Card -->
+        <div class="search-card">
+
+            <div id="find-mode">
+                <label class="input-label">Describe what you half-remember...</label>
+                <div class="input-wrap">
+                    <textarea id="find-input"
+                        placeholder="e.g. that anime where a boy fights demons to save his sister who turned into one..."></textarea>
+                    <button class="mic-btn" id="mic-find" onclick="startVoice('find-input', 'mic-find')" title="Speak">🎤</button>
+                </div>
+            </div>
+
+            <div id="vibe-mode" style="display:none;">
+                <label class="input-label">How are you feeling right now?</label>
+                <div class="input-wrap">
+                    <textarea id="vibe-input"
+                        placeholder="e.g. feeling nostalgic and a little lonely tonight, need something emotional and slow..."></textarea>
+                    <button class="mic-btn" id="mic-vibe" onclick="startVoice('vibe-input', 'mic-vibe')" title="Speak">🎤</button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-row">
+                <span class="filter-lbl">Show me:</span>
+                <button class="filter-btn active" onclick="setFilter(this, 'all')">All</button>
+                <button class="filter-btn" onclick="setFilter(this, 'movie')">🎬 Movies</button>
+                <button class="filter-btn" onclick="setFilter(this, 'tv_show')">📺 TV Shows</button>
+                <button class="filter-btn" onclick="setFilter(this, 'book')">📚 Books</button>
+            </div>
+
+            <button class="search-btn" onclick="doSearch()">
+                <span id="btn-text">Search MOONLIT →</span>
+            </button>
+
+            <div class="chips" id="chips-find">
+                <span class="chip-lbl">Try:</span>
+                <div class="chip" onclick="fillAndSearch('that anime where siblings fight demons and protect each other')">Demon Slayer vibe</div>
+                <div class="chip" onclick="fillAndSearch('two people separated by time who cant be together across different eras')">Timeless love</div>
+                <div class="chip" onclick="fillAndSearch('thriller where reality is not what it seems mind blown at the end')">Mind-bending</div>
+            </div>
+
+            <div class="chips" id="chips-vibe" style="display:none;">
+                <span class="chip-lbl">Try:</span>
+                <div class="chip" onclick="fillAndSearch('feeling heartbroken and want to cry it all out tonight')">Heartbroken 💔</div>
+                <div class="chip" onclick="fillAndSearch('feeling adventurous want something exciting and action packed')">Adventurous 🔥</div>
+                <div class="chip" onclick="fillAndSearch('cozy quiet rainy night want something warm slow and comforting')">Cozy night 🌙</div>
+            </div>
+        </div>
+
+        <!-- Voice Status -->
+        <div id="voice-status" class="voice-status" style="display:none;">
+            🎤 Listening... speak now
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" style="display:none;">
+            <div class="loader">🌙 MOONLIT is thinking...</div>
+        </div>
+
+        <!-- Results -->
+        <div id="results-section" style="display:none;">
+            <div class="results-header">
+                <span id="results-count"></span>
+            </div>
+            <div class="results-grid" id="results-grid"></div>
+        </div>
+
+        <div class="footer">
+            Built with Sentence Transformers · FAISS · BM25 · Flask · 6,234 titles across 15+ languages
+        </div>
+
+    </div>
+
+    <script>
+    // ── State ──
+    var currentMode = 'find';
+    var currentFilter = 'all';
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('find-mode').style.display = mode === 'find' ? 'block' : 'none';
+        document.getElementById('vibe-mode').style.display = mode === 'vibe' ? 'block' : 'none';
+        document.getElementById('chips-find').style.display = mode === 'find' ? 'flex' : 'none';
+        document.getElementById('chips-vibe').style.display = mode === 'vibe' ? 'flex' : 'none';
+        document.getElementById('btn-find').classList.toggle('active', mode === 'find');
+        document.getElementById('btn-vibe').classList.toggle('active', mode === 'vibe');
+        document.getElementById('results-section').style.display = 'none';
+    }
+
+    function setFilter(btn, filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function getQuery() {
+        return currentMode === 'find'
+            ? document.getElementById('find-input').value.trim()
+            : document.getElementById('vibe-input').value.trim();
+    }
+
+    function fillAndSearch(text) {
+        var inputId = currentMode === 'find' ? 'find-input' : 'vibe-input';
+        document.getElementById(inputId).value = text;
+        doSearch();
+    }
+
+    async function doSearch() {
+        var query = getQuery();
+        if (!query) { alert('Please enter something first!'); return; }
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('results-section').style.display = 'none';
+        document.getElementById('btn-text').textContent = 'Searching...';
+
+        try {
+            var response = await fetch('/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query, mode: currentMode, filter: currentFilter })
+            });
+            var data = await response.json();
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('btn-text').textContent = 'Search MOONLIT →';
+            if (data.error) { alert(data.error); return; }
+            displayResults(data);
+        } catch (err) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('btn-text').textContent = 'Search MOONLIT →';
+            alert('Something went wrong. Try again!');
+        }
+    }
+
+    function displayResults(data) {
+        var grid = document.getElementById('results-grid');
+        var count = document.getElementById('results-count');
+        count.textContent = 'Found ' + data.count + ' results for "' + data.query + '"';
+
+        grid.innerHTML = data.results.map(function(r, i) {
+            return '<div class="result-card" id="card-' + i + '" onclick="toggleCard(' + i + ')">' +
+                '<div class="card-img">' +
+                    (r.poster ? '<img src="' + r.poster + '" onerror="this.src=\'https://via.placeholder.com/300x450/e8f0ff/0072ff?text=' + encodeURIComponent(r.title.substring(0,15)) + '\'" alt="' + r.title + '">' : '<img src="https://via.placeholder.com/300x450/e8f0ff/0072ff?text=' + encodeURIComponent(r.title.substring(0,15)) + '" alt="' + r.title + '">') +
+'<div class="card-no-img" style="display:none">🎬</div>' +
+                    '<div class="card-type">' + getTypeLabel(r.type) + '</div>' +
+                    '<div class="card-match">' + r.similarity + '%</div>' +
+                '</div>' +
+                '<div class="card-body">' +
+                    '<div class="card-title">' + r.title + '</div>' +
+                    '<div class="card-meta">' +
+                        (r.rating > 0 ? '⭐ ' + r.rating : '') +
+                        (r.language ? ' · ' + r.language.toUpperCase() : '') +
+                    '</div>' +
+                    '<div class="card-preview">' + r.overview + '</div>' +
+                    '<div class="card-full" id="full-' + i + '" style="display:none;">' +
+                        '<div class="full-divider"></div>' +
+                        '<div class="full-desc">' + r.overview + '</div>' +
+                        '<div class="full-meta-grid">' +
+                            '<div class="meta-item"><div class="meta-label">Rating</div><div class="meta-val">' + (r.rating > 0 ? r.rating + ' / 10' : 'N/A') + '</div></div>' +
+                            '<div class="meta-item"><div class="meta-label">Language</div><div class="meta-val">' + (r.language ? r.language.toUpperCase() : 'N/A') + '</div></div>' +
+                            '<div class="meta-item"><div class="meta-label">Match</div><div class="meta-val">' + r.similarity + '%</div></div>' +
+                        '</div>' +
+                        '<button class="collapse-btn" onclick="event.stopPropagation(); toggleCard(' + i + ')">↑ Collapse</button>' +
+                    '</div>' +
+                    '<div class="conf-bar-bg"><div class="conf-bar" style="width:' + r.similarity + '%"></div></div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        document.getElementById('results-section').style.display = 'block';
+        document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function toggleCard(i) {
+        var full = document.getElementById('full-' + i);
+        var card = document.getElementById('card-' + i);
+        var isOpen = full.style.display !== 'none';
+        document.querySelectorAll('.card-full').forEach(function(f) { f.style.display = 'none'; });
+        document.querySelectorAll('.result-card').forEach(function(c) { c.classList.remove('expanded'); });
+        if (!isOpen) {
+            full.style.display = 'block';
+            card.classList.add('expanded');
+        }
+    }
+
+    function getTypeLabel(type) {
+        if (type === 'movie') return '🎬 Movie';
+        if (type === 'tv_show') return '📺 Show';
+        if (type === 'book') return '📚 Book';
+        return type;
+    }
+
+    function startVoice(targetId, btnId) {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('Voice input not supported. Try Chrome!');
+            return;
+        }
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        var recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        var btn = document.getElementById(btnId);
+        var status = document.getElementById('voice-status');
+        btn.textContent = '🔴';
+        status.style.display = 'block';
+        recognition.onresult = function(event) {
+            document.getElementById(targetId).value = event.results[0][0].transcript;
+            btn.textContent = '🎤';
+            status.style.display = 'none';
+        };
+        recognition.onerror = function() {
+            btn.textContent = '🎤';
+            status.style.display = 'none';
+        };
+        recognition.onend = function() {
+            btn.textContent = '🎤';
+            status.style.display = 'none';
+        };
+        recognition.start();
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.ctrlKey) doSearch();
+    });
+</script>
+
+</body>
+</html>
