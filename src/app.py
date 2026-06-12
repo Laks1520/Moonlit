@@ -7,6 +7,25 @@ import pickle
 from rank_bm25 import BM25Okapi
 import re
 import os
+import requests as req
+
+def download_file(filename):
+    local_path = f"data/{filename}"
+    if os.path.exists(local_path):
+        print(f"{filename} already exists, skipping...")
+        return
+    url = f"https://huggingface.co/datasets/L1520/moonlit-data/resolve/main/{filename}"
+    print(f"Downloading {filename}...")
+    r = req.get(url, stream=True)
+    os.makedirs("data", exist_ok=True)
+    with open(local_path, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=8192):
+            f.write(chunk)
+    print(f"{filename} downloaded! ✅")
+
+# Download all required files on startup
+for file in ["knowledge_base_clean.csv", "embeddings.npy", "moonlit.index", "model_name.pkl"]:
+    download_file(file)
 
 app = Flask(__name__,
             template_folder='../templates',
